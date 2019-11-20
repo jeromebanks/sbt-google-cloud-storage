@@ -5,20 +5,21 @@ import java.io._
 import java.io.FileInputStream
 
 import scala.collection.JavaConverters._
-
 import com.google.cloud.storage._
 import com.google.cloud.storage.Storage
 import com.google.cloud.storage.Bucket._
+import com.google.cloud.storage.Storage.BlobListOption
 import com.lightbend.gcsplugin.AccessRights._
 import org.apache.ivy.core.module.descriptor._
 import org.apache.ivy.plugins.repository._
+import sbt.librarymanagement.RawRepository
 
-case class GCSRepository(bucketName: String, publishPolicy: AccessRigths) extends AbstractRepository {
+case class GCSRepository(bucketName: String, path: String, publishPolicy: AccessRights) extends AbstractRepository {
   private val storage: Storage = StorageOptions.getDefaultInstance.getService
   private lazy val bucket = storage.get(bucketName)
 
   override def getResource(source: String): GCSResource = {
-    GCSResource.create(storage, bucketName, source)
+    GCSResource.create(storage, bucketName, path + "/" + source)
   }
 
   override def get(source: String, destination: File): Unit = {
@@ -34,7 +35,12 @@ case class GCSRepository(bucketName: String, publishPolicy: AccessRigths) extend
   }
 
   override def list(parent: String): util.List[String] = {
-    storage.list(bucketName).getValues.asScala.map(_.getName).toList.asJava
+    val filter = BlobListOption.prefix(path)
+    val results = storage.list(bucketName, filter).getValues.asScala.map(_.getName).toList.asJava
+    scala.Console.println(s" GCS RESULTS ARE ${results.asScala.mkString(":")}")
+    val results2 = storage.list(bucketName).getValues.asScala.map(_.getName).toList.asJava
+    scala.Console.println(s" GCS RESULTS UNFILTERED ARE ${results2.asScala.mkString(":")}")
+    results
   }
 
   override def put(artifact: Artifact, source: File, destination: String, overwrite: Boolean): Unit = {
@@ -42,14 +48,14 @@ case class GCSRepository(bucketName: String, publishPolicy: AccessRigths) extend
     publishPolicy match {
       case AccessRights.PublicRead ⇒
         bucket.create(
-          destination.replace("//", "/"),
+          (path + "/" + destination).replace("//", "/"),
           new FileInputStream(source),
           getContentType(artifact.getType),
           BlobWriteOption.predefinedAcl(Storage.PredefinedAcl.PUBLIC_READ)
         )
       case AccessRights.InheritBucket ⇒
         bucket.create(
-          destination.replace("//", "/"),
+          (path + "/" + destination).replace("//", "/"),
           new FileInputStream(source),
           getContentType(artifact.getType)
         )

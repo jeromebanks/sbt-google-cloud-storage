@@ -1,9 +1,18 @@
 package com.lightbend.gcsplugin
 
+import java.net.URL
+
+import com.demandbase.gcsurl.GCSUrlStreamHandlerFactory
 import sbt.PluginTrigger
 import sbt.AutoPlugin
+import sbt.util.Logger
 
 object GCSPlugin extends AutoPlugin {
+
+  val bootstrapStartup = {
+    scala.Console.println(s" Bootstrapping GCS URL Plugin")
+    URL.setURLStreamHandlerFactory(GCSUrlStreamHandlerFactory)
+  }
 
   trait Keys {
     implicit def toSbtResolver(resolver: GCSResolver): sbt.Resolver = {
@@ -20,8 +29,8 @@ object GCSPlugin extends AutoPlugin {
 
   import sbt.Keys._
 
-  override def projectSettings = Seq(
-    publishMavenStyle := false
+  override def projectSettings = Seq( ////publishMavenStyle := false
+  ////publishMavenStyle := true
   )
 
   override def trigger: PluginTrigger = allRequirements
